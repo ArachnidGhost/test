@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация на мероприятие</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 400px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+        }
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Регистрация на мероприятие</h2>
+    <form action="/event/{{ event.id }}/register/" method="POST" id="registration_form">
+        <label for="user_name">Ваше имя:</label>
+        <input type="text" id="user_name" name="user_name" required>
+
+        <label for="user_email">Ваш Email:</label>
+        <input type="email" id="user_email" name="user_email" required>
+
+        <label for="available_time">Доступное время:</label>
+        <input type="date" id="event_date" name="event_date" required>
+        <input type="range" id="time_slider" min="0" max="143" step="1" value="0">
+        <span id="selected_time">09:00</span>
+        <input type="hidden" id="available_time" name="available_time" required>
+
+
+        <button type="submit" id="register_button">Зарегистрироваться</button>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const availableTimeInput = document.getElementById('available_time');
+        const dateInput = document.getElementById('event_date');
+        const timeSlider = document.getElementById('time_slider');
+        const selectedTimeDisplay = document.getElementById('selected_time');
+
+        // Устанавливаем текущее время с округлением до ближайших 10 минут
+        function setInitialTime() {
+            const now = new Date();
+            const roundedMinutes = Math.round(now.getMinutes() / 10) * 10;
+            now.setMinutes(roundedMinutes);
+            now.setSeconds(0);
+            now.setMilliseconds(0);
+
+            const isoString = now.toISOString(); // Преобразуем в формат YYYY-MM-DDTHH:MM
+            availableTimeInput.value = isoString;
+        }
+
+        // Обновляем отображаемое время при перемещении слайдера
+        timeSlider.addEventListener('input', function() {
+            const hours = Math.floor(timeSlider.value / 6); // 6 значений для 24 часов
+            const minutes = (timeSlider.value % 6) * 10; // Каждое значение на слайдере соответствует 10 минутам
+            const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            selectedTimeDisplay.textContent = formattedTime;
+            updateAvailableTime();
+        });
+
+        // Обновляем значение доступного времени
+        function updateAvailableTime() {
+            const selectedDate = dateInput.value;
+            const hours = Math.floor(timeSlider.value / 6);
+            const minutes = (timeSlider.value % 6) * 10;
+            const selectedDateTime = new Date(selectedDate);
+            selectedDateTime.setHours(hours);
+            selectedDateTime.setMinutes(minutes);
+            availableTimeInput.value = selectedDateTime.toISOString().slice(0, 16);
+        }
+
+        // Устанавливаем текущее время при загрузке
+        setInitialTime();
+
+        // Обновляем время при изменении даты
+        dateInput.addEventListener('change', updateAvailableTime);
+
+        // Обработка отправки формы
+        document.getElementById('registration_form').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('user_name').value;
+            const email = document.getElementById('user_email').value;
+            const availableTime = availableTimeInput.value; // Получаем значение из поля доступного времени
+            const eventId = "{{ event.id }}";
+
+            fetch(`/event/${eventId}/register/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ user_name: name, user_email: email, available_time: availableTime })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error('Ошибка регистрации');
+            })
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => {
+                alert(error.message);
+            });
+        });
+    });
+</script>
+</body>
+
+</html>
